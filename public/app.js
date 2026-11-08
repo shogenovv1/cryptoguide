@@ -9,6 +9,12 @@ function readArray(key) {
   }
 }
 const state = { currentView: 'overview', news: [], selectedImage: null, imageData: null, lessons: [], history: readArray('cg-history'), lang: localStorage.getItem('cg-lang') || 'ru', theme: localStorage.getItem('cg-theme') || 'dark' };
+const staticMarket = { BTC: { usd: 75800, usd_24h_change: 0 }, ETH: { usd: 2235, usd_24h_change: 0 }, SOL: { usd: 89, usd_24h_change: 0 } };
+const staticNews = [
+  { id: 'static-1', titleOriginal: 'Binance’s finance chief Kaiser Ng to leave company, report says', titleRu: 'Финансовый директор Binance Кайзер Нг покинет компанию, сообщают СМИ', source: 'Cointelegraph', time: new Date().toISOString(), asset: 'Market', url: 'https://cointelegraph.com/' },
+  { id: 'static-2', titleOriginal: 'Bitcoin market participants watch liquidity and macro signals', titleRu: 'Участники рынка Bitcoin следят за ликвидностью и макроэкономическими сигналами', source: 'CoinDesk', time: new Date(Date.now() - 3600000).toISOString(), asset: 'BTC', url: 'https://www.coindesk.com/' },
+  { id: 'static-3', titleOriginal: 'Risk management remains essential during volatile crypto sessions', titleRu: 'Управление риском остаётся важным во время волатильных сессий крипторынка', source: 'CryptoGuide', time: new Date(Date.now() - 7200000).toISOString(), asset: 'Market', url: 'https://www.coindesk.com/' }
+];
 
 const lessons = [
   { id: 'p2p', title: 'P2P: обмен без спешки', duration: '6 мин · база', description: 'Что происходит между покупателем и продавцом, как работает escrow и какие красные флаги нельзя игнорировать.', body: 'P2P — это сделка между пользователями через площадку. Проверяй имя получателя, не уходи в сторонние мессенджеры, не подтверждай оплату по скриншоту и не отпускай актив, пока деньги не видны в твоём банке.' },
@@ -143,7 +149,13 @@ function renderMarket(data) {
 }
 async function loadMarket() {
   try { const response = await fetch('/api/market'); const payload = await response.json(); renderMarket(payload.data); }
-  catch { renderMarket(null); }
+  catch {
+    try {
+      const symbols = encodeURIComponent('["BTCUSDT","ETHUSDT","SOLUSDT"]'); const response = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${symbols}`); const rows = await response.json(); const bySymbol = Object.fromEntries(rows.map(row => [row.symbol, row]));
+      const fromBinance = symbol => ({ usd: Number(bySymbol[`${symbol}USDT`]?.lastPrice || staticMarket[symbol].usd), usd_24h_change: Number(bySymbol[`${symbol}USDT`]?.priceChangePercent || 0) });
+      renderMarket({ BTC: fromBinance('BTC'), ETH: fromBinance('ETH'), SOL: fromBinance('SOL') });
+    } catch { renderMarket(staticMarket); }
+  }
 }
 function renderCompactNews(items = []) {
   $('#latestNewsList').innerHTML = items.slice(0, 3).map(item => `<div class="compact-news-item"><span class="news-bullet"></span><div><a href="${safeExternalUrl(item.url)}" target="_blank" rel="noreferrer">${escapeHtml(item.title)}</a><small>${escapeHtml(item.source)} · ${formatDate(item.time)}</small></div></div>`).join('') || `<div class="loading-row">${state.lang === 'en' ? 'No news to show yet.' : 'Пока нет новостей для показа.'}</div>`;
@@ -167,8 +179,7 @@ async function loadNews() {
     renderNews(state.news); renderCompactNews(state.news);
     $('#newsStatus').textContent = state.lang === 'en' ? `${state.news.length} posts · updated ${formatDate(payload.updatedAt)}` + (payload.live ? '' : ' · fallback mode') : `${state.news.length} публикаций · обновлено ${formatDate(payload.updatedAt)}` + (payload.live ? '' : ' · fallback-режим');
   } catch {
-    $('#newsStatus').textContent = state.lang === 'en' ? 'Could not refresh the feed. Try again.' : 'Не удалось обновить ленту. Попробуй ещё раз.';
-    $('#newsList').innerHTML = `<div class="empty-state"><strong>${state.lang === 'en' ? 'Source temporarily unavailable' : 'Источник временно недоступен'}</strong><p>${state.lang === 'en' ? 'Check the connection and refresh.' : 'Проверь соединение и повтори обновление.'}</p></div>`;
+    state.news = staticNews.map(item => ({ ...item, title: state.lang === 'ru' ? item.titleRu : item.titleOriginal })); renderNews(state.news); renderCompactNews(state.news); $('#newsStatus').textContent = state.lang === 'en' ? 'Static demo feed · server mode provides live RSS' : 'Статическая демонстрационная лента · серверная версия даёт свежий RSS';
   }
 }
 function renderNews(items) {
