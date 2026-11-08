@@ -158,3 +158,5 @@ h2 { margin: 8px 0 0; font-size: 20px; letter-spacing: -.04em; font-weight: 600;
 :root[data-theme="light"] .context-form input, :root[data-theme="light"] .context-form select, :root[data-theme="light"] .risk-form input, :root[data-theme="light"] .news-toolbar select, :root[data-theme="light"] .search-box, :root[data-theme="light"] .journal-panel textarea, :root[data-theme="light"] .source-grid a, :root[data-theme="light"] .next-lesson { background: #f6fafa; }
 :root[data-theme="light"] .market-card, :root[data-theme="light"] .panel { box-shadow: 0 8px 25px rgba(25, 64, 67, .05); }
 @media (max-width: 720px) { .settings-controls { gap: 4px; }.settings-button { min-width: 29px; height: 29px; padding: 0 6px; }.top-actions { gap: 6px; } }
+
+.news-translation { margin: 4px 0 3px !important; color: var(--teal) !important; font-size: 10px !important; }

@@ -7,7 +7,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = path.join(ROOT, 'public');
 const PORT = Number(process.env.PORT || 3000);
 const MAX_BODY_BYTES = 12 * 1024 * 1024;
-const newsCache = { ru: { at: 0, items: [] }, en: { at: 0, items: [] } };
+const newsCache = { at: 0, items: [], translatedAt: 0 };
 const marketCache = { at: 0, data: null };
 
 const fallbackNews = [
@@ -77,33 +77,68 @@ async function fetchWithTimeout(url, ms = 6500) {
   }
 }
 
+async function translateNewsTitles(items) {
+  if (!items.length) return items;
+  if (!process.env.MANUS_API_URL || !process.env.MANUS_API_KEY) return items.map(item => ({ ...item, titleRu: item.titleOriginal }));
+  const input = items.map(item => ({ id: item.id, title: item.titleOriginal }));
+  const prompt = `Переведи заголовки криптовалютных новостей на естественный русский язык. Не добавляй фактов, не меняй смысл и не переводи названия компаний/тикеров без необходимости. Верни только JSON-массив объектов вида {"id":"...","titleRu":"..."}. Заголовки: ${JSON.stringify(input)}`;
+  try {
+    const response = await fetch(`${process.env.MANUS_API_URL}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.MANUS_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: process.env.CG_VISION_MODEL || 'gpt-5-mini', max_completion_tokens: 1200, reasoning: { effort: 'minimal' }, messages: [{ role: 'user', content: prompt }] })
+    });
+    const payload = await response.json();
+    const content = payload.choices?.[0]?.message?.content || '';
+    const cleaned = content.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+    const translated = JSON.parse(cleaned);
+    const byId = new Map(translated.filter(item => item?.id && item?.titleRu).map(item => [item.id, item.titleRu]));
+    return items.map(item => ({ ...item, titleRu: byId.get(item.id) || item.titleOriginal }));
+  } catch {
+    return items.map(item => ({ ...item, titleRu: item.titleOriginal }));
+  }
+}
+
 async function getNews(lang = 'ru') {
-  const cache = newsCache[lang] || newsCache.ru;
-  if (Date.now() - cache.at < 180000 && cache.items.length) return cache.items;
-  const sources = lang === 'en' ? [
+  if (Date.now() - newsCache.at < 180000 && newsCache.items.length) {
+    if (lang === 'ru' && newsCache.translatedAt === 0) { newsCache.items = await translateNewsTitles(newsCache.items); newsCache.translatedAt = Date.now(); }
+    return newsCache.items.map(item => ({ ...item, title: lang === 'ru' ? item.titleRu : item.titleOriginal }));
+  }
+  const sources = [
     ['CoinDesk', 'https://www.coindesk.com/arc/outboundfeeds/rss/'],
     ['Cointelegraph', 'https://cointelegraph.com/rss']
-  ] : [
-    ['ForkLog', 'https://forklog.com/feed/'],
-    ['Google News RU', 'https://news.google.com/rss/search?q=%D0%BA%D1%80%D0%B8%D0%BF%D1%82%D0%BE%D0%B2%D0%B0%D0%BB%D1%8E%D1%82%D1%8B%20OR%20%D0%B1%D0%B8%D1%82%D0%BA%D0%BE%D0%B8%D0%BD%20OR%20%D1%8D%D1%84%D0%B8%D1%80%D0%B8%D1%83%D0%BC&hl=ru&gl=RU&ceid=RU:ru']
   ];
   const batches = await Promise.allSettled(sources.map(async ([source, url]) => parseFeed(await fetchWithTimeout(url), source)));
   const items = batches.flatMap(result => result.status === 'fulfilled' ? result.value : []);
   const unique = [...new Map(items.map(item => [item.title, item])).values()].sort((a, b) => Date.parse(b.time) - Date.parse(a.time));
-  cache.items = unique.length ? unique.slice(0, 24) : (lang === 'en' ? fallbackNews : fallbackNewsRu);
-  cache.at = Date.now();
-  return cache.items;
+  const canonical = (unique.length ? unique.slice(0, 24) : fallbackNews).map(item => ({ ...item, titleOriginal: item.title, titleRu: item.title }));
+  newsCache.items = lang === 'ru' ? await translateNewsTitles(canonical) : canonical;
+  newsCache.translatedAt = lang === 'ru' ? Date.now() : 0;
+  newsCache.at = Date.now();
+  return newsCache.items.map(item => ({ ...item, title: lang === 'ru' ? item.titleRu : item.titleOriginal }));
+}
+
+async function getBinanceMarket() {
+  const symbols = encodeURIComponent('["BTCUSDT","ETHUSDT","SOLUSDT"]');
+  const raw = JSON.parse(await fetchWithTimeout(`https://api.binance.com/api/v3/ticker/24hr?symbols=${symbols}`, 5000));
+  const rows = Object.fromEntries(raw.map(row => [row.symbol, row]));
+  const convert = symbol => rows[`${symbol}USDT`] ? { usd: Number(rows[`${symbol}USDT`].lastPrice), usd_24h_change: Number(rows[`${symbol}USDT`].priceChangePercent) } : fallbackMarket[symbol];
+  return { BTC: convert('BTC'), ETH: convert('ETH'), SOL: convert('SOL') };
 }
 
 async function getMarket() {
   if (Date.now() - marketCache.at < 120000 && marketCache.data) return marketCache.data;
-  try {
-    const url = 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true';
-    const raw = JSON.parse(await fetchWithTimeout(url, 5000));
-    marketCache.data = { BTC: raw.bitcoin || fallbackMarket.BTC, ETH: raw.ethereum || fallbackMarket.ETH, SOL: raw.solana || fallbackMarket.SOL };
-  } catch {
-    marketCache.data = fallbackMarket;
-  }
+  const [coingecko, binance] = await Promise.allSettled([
+    fetchWithTimeout('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true', 5000).then(text => JSON.parse(text)),
+    getBinanceMarket()
+  ]);
+  const cg = coingecko.status === 'fulfilled' ? coingecko.value : {};
+  const bn = binance.status === 'fulfilled' ? binance.value : {};
+  marketCache.data = {
+    BTC: cg.bitcoin?.usd ? { usd: cg.bitcoin.usd, usd_24h_change: cg.bitcoin.usd_24h_change } : (bn.BTC || fallbackMarket.BTC),
+    ETH: cg.ethereum?.usd ? { usd: cg.ethereum.usd, usd_24h_change: cg.ethereum.usd_24h_change } : (bn.ETH || fallbackMarket.ETH),
+    SOL: cg.solana?.usd ? { usd: cg.solana.usd, usd_24h_change: cg.solana.usd_24h_change } : (bn.SOL || fallbackMarket.SOL)
+  };
   marketCache.at = Date.now();
   return marketCache.data;
 }

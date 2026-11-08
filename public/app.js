@@ -148,7 +148,7 @@ async function loadNews() {
   }
 }
 function renderNews(items) {
-  $('#newsList').innerHTML = items.map(item => `<article class="news-row"><div class="news-source">${escapeHtml(item.source)}</div><div><h3><a href="${safeExternalUrl(item.url)}" target="_blank" rel="noreferrer">${escapeHtml(item.title)}</a></h3><p>${formatDate(item.time)} · ${state.lang === 'en' ? 'open source website' : 'открывается на сайте источника'}</p></div><div class="news-tag">${escapeHtml(item.asset)}</div></article>`).join('') || `<div class="empty-state"><strong>${state.lang === 'en' ? 'Nothing found' : 'Ничего не найдено'}</strong><p>${state.lang === 'en' ? 'Change the query or topic.' : 'Измени запрос или выбери другую тему.'}</p></div>`;
+  $('#newsList').innerHTML = items.map(item => { const translation = state.lang === 'ru' ? `Оригинал: ${item.titleOriginal || item.title}` : `Русский перевод: ${item.titleRu || item.title}`; return `<article class="news-row"><div class="news-source">${escapeHtml(item.source)}</div><div><h3><a href="${safeExternalUrl(item.url)}" target="_blank" rel="noreferrer">${escapeHtml(item.title)}</a></h3><p class="news-translation">${escapeHtml(translation)}</p><p>${formatDate(item.time)} · ${state.lang === 'en' ? 'open source website' : 'открывается на сайте источника'}</p></div><div class="news-tag">${escapeHtml(item.asset)}</div></article>`; }).join('') || `<div class="empty-state"><strong>${state.lang === 'en' ? 'Nothing found' : 'Ничего не найдено'}</strong><p>${state.lang === 'en' ? 'Change the query or topic.' : 'Измени запрос или выбери другую тему.'}</p></div>`;
 }
 function renderLessons() {
   const completed = readArray('cg-lessons'); state.lessons = completed;
