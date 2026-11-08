@@ -134,34 +134,74 @@ function handleFile(file) {
   if (!file || !allowedTypes.has(file.type)) { showToast('Выбери изображение PNG, JPG или WEBP'); return; }
   if (file.size > 8 * 1024 * 1024) { showToast('Файл слишком большой: максимум 8 MB'); return; }
   state.selectedImage = file; const reader = new FileReader();
-  reader.onload = event => { $('#chartPreview').src = event.target.result; $('#fileName').textContent = file.name; $('#fileMeta').textContent = `${(file.size / 1024).toFixed(0)} KB · ${file.type.split('/')[1].toUpperCase()}`; $('#dropzone').classList.add('hidden'); $('#previewWrap').classList.remove('hidden'); };
+  reader.onload = event => { state.imageData = event.target.result; $('#chartPreview').src = event.target.result; $('#fileName').textContent = file.name; $('#fileMeta').textContent = `${(file.size / 1024).toFixed(0)} KB · ${file.type.split('/')[1].toUpperCase()}`; $('#dropzone').classList.add('hidden'); $('#previewWrap').classList.remove('hidden'); };
   reader.readAsDataURL(file);
 }
-function removeImage() { state.selectedImage = null; $('#chartFile').value = ''; $('#dropzone').classList.remove('hidden'); $('#previewWrap').classList.add('hidden'); }
-function analyzeChart() {
-  if (!state.selectedImage) { showToast('Сначала добавь скриншот графика'); return; }
-  const pair = ($('#pairInput').value.trim() || 'BTC/USDT').toUpperCase(); const safePair = escapeHtml(pair); const timeframe = $('#timeframeInput').value; const price = Math.max(0, Number($('#priceInput').value) || 0); const direction = $('#directionInput').value;
-  const buffer = price * .012; const stop = direction === 'short' ? price + buffer : price - buffer; const target = direction === 'short' ? price - buffer * 1.8 : price + buffer * 1.8;
-  const scenario = direction === 'long' ? 'Лонг только после подтверждения' : direction === 'short' ? 'Шорт только после подтверждения' : 'Наблюдение до появления сигнала';
-  const condition = direction === 'long' ? `цена удерживается выше ${formatPrice(price)} и формирует подтверждение на ${timeframe}` : direction === 'short' ? `цена не возвращается выше ${formatPrice(price)} и показывает слабость на ${timeframe}` : `появляется понятная реакция на уровень ${formatPrice(price)} с объёмом или структурой движения`;
-  const invalidation = direction === 'short' ? `закрепление выше ${formatPrice(stop)}` : `закрепление ниже ${formatPrice(stop)}`;
-  const action = direction === 'neutral' ? 'Сейчас полезнее наблюдать и собрать подтверждения.' : 'Не входить по одному скриншоту; сначала проверить условие сценария.';
-  const result = `<div class="analysis-result"><div class="signal-card"><span class="signal-label">УЧЕБНЫЙ СЦЕНАРИЙ · ${safePair}</span><h3>${scenario}</h3><p>${action} Сценарий построен по введённой цене и контексту, а не является предсказанием рынка.</p></div><div class="analysis-grid"><div class="analysis-cell"><span>Условие</span><strong>${condition}</strong></div><div class="analysis-cell"><span>Точка отмены</span><strong>${invalidation}</strong></div><div class="analysis-cell"><span>Учебная цель</span><strong>${formatPrice(target)}</strong></div><div class="analysis-cell"><span>Уровень риска</span><strong>умеренный / проверь сам</strong></div></div><ul class="analysis-list"><li><strong>Что проверить:</strong> старший таймфрейм, ближайшие уровни, объём и новости по ${escapeHtml(pair.split('/')[0])}.</li><li><strong>Почему не спешить:</strong> скриншот не показывает ликвидность, funding, комиссию и внезапные события.</li><li><strong>Дисциплина:</strong> если условие не выполнено, сценарий пропускается — это нормальный результат.</li></ul></div>`;
-  $('#analysisEmpty').classList.add('hidden'); $('#analysisResult').innerHTML = result; $('#analysisResult').classList.remove('hidden'); $('#analysisStatus').textContent = 'ГОТОВО'; $('#analysisStatus').className = 'status-badge ready';
-  state.history.unshift({ pair, timeframe, direction, at: new Date().toISOString() }); state.history = state.history.slice(0, 6); localStorage.setItem('cg-history', JSON.stringify(state.history)); showToast('Учебный сценарий готов');
+function removeImage() { state.selectedImage = null; state.imageData = null; $('#chartFile').value = ''; $('#dropzone').classList.remove('hidden'); $('#previewWrap').classList.add('hidden'); }
+function selectedPair() { return $('#pairSelect').value === 'custom' ? ($('#pairCustom').value.trim() || 'CUSTOM/USDT') : $('#pairSelect').value; }
+function renderVisionResult(result, mode = 'vision') {
+  const detected = Array.isArray(result.detected) ? result.detected : [];
+  const targets = Array.isArray(result.targets) ? result.targets : [];
+  const risks = Array.isArray(result.risks) ? result.risks : [];
+  const biasLabel = result.bias === 'long' ? 'ЛОНГ-СЦЕНАРИЙ' : result.bias === 'short' ? 'ШОРТ-СЦЕНАРИЙ' : 'НАБЛЮДЕНИЕ';
+  const list = values => values.length ? values.map(item => `<li>${escapeHtml(String(item))}</li>`).join('') : '<li>Данных недостаточно — проверь график вручную.</li>';
+  const html = `<div class="analysis-result"><div class="signal-card"><span class="signal-label">${mode === 'vision' ? 'AI VISION' : 'FALLBACK'} · ${escapeHtml(selectedPair())}</span><h3>${escapeHtml(result.scenario || 'Сценарий не подтверждён')}</h3><p>${escapeHtml(result.summary || 'Сначала собери больше контекста и не торопись с решением.')}</p></div><div class="analysis-grid"><div class="analysis-cell"><span>Смещение</span><strong>${biasLabel}</strong></div><div class="analysis-cell"><span>Уверенность</span><strong>${escapeHtml(result.confidence || 'low')}</strong></div><div class="analysis-cell"><span>Условие</span><strong>${escapeHtml(result.entryCondition || 'Нужно дополнительное подтверждение')}</strong></div><div class="analysis-cell"><span>Точка отмены</span><strong>${escapeHtml(result.invalidation || 'Определи до входа')}</strong></div></div><ul class="analysis-list"><li><strong>Что AI увидел:</strong><ul>${list(detected)}</ul></li><li><strong>Учебные цели:</strong><ul>${list(targets)}</ul></li><li><strong>Риски:</strong><ul>${list(risks)}</ul></li><li><strong>Вывод для обучения:</strong> ${escapeHtml(result.learningNote || 'Сравни гипотезу с графиком и новостями.')}</li></ul></div>`;
+  $('#analysisEmpty').classList.add('hidden'); $('#analysisResult').innerHTML = html; $('#analysisResult').classList.remove('hidden'); $('#analysisStatus').textContent = mode === 'vision' ? 'AI ГОТОВ' : 'FALLBACK'; $('#analysisStatus').className = `status-badge ${mode === 'vision' ? 'ready' : 'wait'}`;
+}
+function fallbackAnalysis() {
+  const price = Math.max(0, Number($('#priceInput').value) || 0); const direction = $('#directionInput').value; const buffer = price * .012; const stop = direction === 'short' ? price + buffer : price - buffer; const target = direction === 'short' ? price - buffer * 1.8 : price + buffer * 1.8;
+  return { scenario: direction === 'long' ? 'Лонг только после подтверждения' : direction === 'short' ? 'Шорт только после подтверждения' : 'Наблюдение до появления сигнала', bias: direction, confidence: 'low', summary: 'AI временно недоступен. Этот fallback использует только введённые поля и не распознаёт изображение.', entryCondition: 'Проверь реакцию цены и объём на выбранном таймфрейме', invalidation: direction === 'short' ? `закрепление выше ${formatPrice(stop)}` : `закрепление ниже ${formatPrice(stop)}`, targets: [`учебный ориентир ${formatPrice(target)}`], detected: ['Содержимое скриншота не распознано в fallback-режиме'], risks: ['Один скриншот не показывает новости, ликвидность и funding'], learningNote: 'Не воспринимай fallback как сигнал.' };
+}
+async function analyzeChart() {
+  if (!state.selectedImage || !state.imageData) { showToast('Сначала добавь скриншот графика'); return; }
+  const pair = selectedPair(); const timeframe = $('#timeframeInput').value; const price = Math.max(0, Number($('#priceInput').value) || 0); const direction = $('#directionInput').value;
+  $('#analyzeButton').disabled = true; $('#analyzeButton').innerHTML = 'AI читает график <span>…</span>'; $('#analysisStatus').textContent = 'АНАЛИЗ'; $('#analysisStatus').className = 'status-badge wait';
+  try {
+    const response = await fetch('/api/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageData: state.imageData, pair, timeframe, price, direction }) });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'ai_unavailable');
+    renderVisionResult(payload.result, payload.mode); showToast('AI Vision разобрал изображение');
+  } catch { renderVisionResult(fallbackAnalysis(), 'fallback'); showToast('AI временно недоступен — показан учебный fallback'); }
+  finally { $('#analyzeButton').disabled = false; $('#analyzeButton').innerHTML = 'Разобрать через AI Vision <span>→</span>'; }
+  state.history.unshift({ pair, timeframe, direction, at: new Date().toISOString() }); state.history = state.history.slice(0, 6); localStorage.setItem('cg-history', JSON.stringify(state.history));
+}
+function readObjectArray(key) {
+  try { const value = JSON.parse(localStorage.getItem(key) || '[]'); return Array.isArray(value) ? value : []; } catch { return []; }
+}
+function paperPnl(trade) {
+  const move = trade.side === 'long' ? trade.exit - trade.entry : trade.entry - trade.exit;
+  const gross = trade.size * (move / trade.entry); const fee = trade.size * (trade.fee / 100) * 2;
+  return gross - fee;
+}
+function renderPaper() {
+  const trades = readObjectArray('cg-paper-trades'); const notes = readObjectArray('cg-journal'); const total = trades.reduce((sum, trade) => sum + paperPnl(trade), 0); const wins = trades.filter(trade => paperPnl(trade) > 0).length;
+  $('#paperPnl').innerHTML = `${total.toFixed(2)} <small>USDT</small>`; $('#paperPnl').style.color = total >= 0 ? 'var(--teal)' : 'var(--red)'; $('#paperCount').textContent = trades.length; $('#paperWinRate').textContent = trades.length ? `${Math.round(wins / trades.length * 100)}%` : '0%';
+  $('#paperHistory').innerHTML = trades.length ? trades.slice().reverse().slice(0, 10).map((trade, index) => { const pnl = paperPnl(trade); return `<div class="paper-row"><div><span>${escapeHtml(trade.pair)}</span><strong>${trade.side === 'long' ? 'Лонг' : 'Шорт'}</strong></div><div><span>Вход → выход</span><strong>${formatPrice(trade.entry)} → ${formatPrice(trade.exit)}</strong></div><div><span>Размер</span><strong>${trade.size.toFixed(2)} USDT</strong></div><div><span>PNL</span><strong class="${pnl >= 0 ? 'pnl-positive' : 'pnl-negative'}">${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)} USDT</strong></div><button class="text-button delete-paper" data-index="${trades.length - 1 - index}">Удалить</button></div>`; }).join('') : '<div class="paper-empty">Пока нет симуляций. Добавь первую сделку, чтобы увидеть PNL.</div>';
+  $('#journalList').innerHTML = notes.length ? notes.slice().reverse().slice(0, 6).map(note => `<div class="journal-entry"><time>${formatDate(note.at)}</time>${escapeHtml(note.text)}</div>`).join('') : '<div class="paper-empty">Журнал пуст. Запиши, что ты увидел и чему научился.</div>';
+  $$('.delete-paper').forEach(button => button.addEventListener('click', () => { const current = readObjectArray('cg-paper-trades'); current.splice(Number(button.dataset.index), 1); localStorage.setItem('cg-paper-trades', JSON.stringify(current)); renderPaper(); }));
+}
+function addPaperTrade() {
+  const trade = { pair: $('#paperPair').value, side: $('#paperSide').value, entry: Math.max(0, Number($('#paperEntry').value) || 0), exit: Math.max(0, Number($('#paperExit').value) || 0), size: Math.max(0, Number($('#paperSize').value) || 0), fee: Math.max(0, Number($('#paperFee').value) || 0), at: new Date().toISOString() };
+  if (!trade.entry || !trade.exit || !trade.size) { showToast('Заполни вход, выход и размер позиции'); return; }
+  const trades = readObjectArray('cg-paper-trades'); trades.push(trade); localStorage.setItem('cg-paper-trades', JSON.stringify(trades)); renderPaper(); showToast('Paper-сделка добавлена в журнал');
+}
+function saveJournal() {
+  const input = $('#journalInput'); const text = input.value.trim(); if (!text) { showToast('Сначала напиши заметку'); return; }
+  const notes = readObjectArray('cg-journal'); notes.push({ text: text.slice(0, 1000), at: new Date().toISOString() }); localStorage.setItem('cg-journal', JSON.stringify(notes.slice(-30))); input.value = ''; renderPaper(); showToast('Заметка сохранена');
 }
 function initEvents() {
   $$('.nav-item').forEach(button => button.addEventListener('click', () => setView(button.dataset.view)));
   $$('[data-go]').forEach(button => button.addEventListener('click', () => setView(button.dataset.go)));
   $('#refreshAll').addEventListener('click', () => { loadMarket(); loadNews(); showToast('Обновляю данные'); });
-  $('#refreshNews').addEventListener('click', loadNews); $('#newsSearch').addEventListener('input', debounce(loadNews, 350)); $('#newsAsset').addEventListener('change', loadNews);
-  $('#chartFile').addEventListener('change', event => handleFile(event.target.files[0])); $('#removeImage').addEventListener('click', removeImage); $('#analyzeButton').addEventListener('click', analyzeChart);
+  $('#refreshNews').addEventListener('click', loadNews); $('#newsSearch').addEventListener('input', debounce(loadNews, 350)); $('#newsAsset').addEventListener('change', loadNews); setInterval(loadNews, 5 * 60 * 1000);
+  $('#chartFile').addEventListener('change', event => handleFile(event.target.files[0])); $('#removeImage').addEventListener('click', removeImage); $('#analyzeButton').addEventListener('click', analyzeChart); $('#pairSelect').addEventListener('change', event => $('#pairCustom').classList.toggle('hidden', event.target.value !== 'custom'));
   const dropzone = $('#dropzone'); ['dragenter', 'dragover'].forEach(type => dropzone.addEventListener(type, event => { event.preventDefault(); dropzone.classList.add('drag'); })); ['dragleave', 'drop'].forEach(type => dropzone.addEventListener(type, event => { event.preventDefault(); dropzone.classList.remove('drag'); })); dropzone.addEventListener('drop', event => handleFile(event.dataTransfer.files[0]));
   $('#termSearch').addEventListener('input', event => renderGlossary(event.target.value)); ['depositInput', 'riskPercentInput', 'stopPercentInput'].forEach(id => $(`#${id}`).addEventListener('input', calculateRisk)); $('.close-notice').addEventListener('click', event => event.currentTarget.closest('.notice-card').remove());
+  $('#addPaperTrade').addEventListener('click', addPaperTrade); $('#saveJournal').addEventListener('click', saveJournal); $('#clearPaper').addEventListener('click', () => { localStorage.removeItem('cg-paper-trades'); renderPaper(); showToast('Paper-история очищена'); });
 }
 function debounce(fn, delay) { let timer; return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); }; }
 function boot() {
   $('#heroDate').textContent = new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date());
-  initEvents(); renderLessons(); renderGlossary(); calculateRisk(); loadMarket(); loadNews();
+  initEvents(); renderLessons(); renderGlossary(); calculateRisk(); renderPaper(); loadMarket(); loadNews();
 }
 window.addEventListener('DOMContentLoaded', boot);

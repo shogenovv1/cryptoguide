@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = path.join(ROOT, 'public');
 const PORT = Number(process.env.PORT || 3000);
+const MAX_BODY_BYTES = 12 * 1024 * 1024;
 const newsCache = { at: 0, items: [] };
 const marketCache = { at: 0, data: null };
 
@@ -98,6 +99,71 @@ async function getMarket() {
   return marketCache.data;
 }
 
+async function readJsonBody(req) {
+  let size = 0;
+  const chunks = [];
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > MAX_BODY_BYTES) throw new Error('payload_too_large');
+    chunks.push(chunk);
+  }
+  return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+}
+
+function parseModelJson(content = '') {
+  const cleaned = content.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+  try { return JSON.parse(cleaned); } catch {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('invalid_model_json');
+    return JSON.parse(match[0]);
+  }
+}
+
+function visionFallback(input = {}) {
+  const pair = String(input.pair || 'BTC/USDT').slice(0, 30);
+  const price = Number(input.price) || 0;
+  const direction = ['long', 'short'].includes(input.direction) ? input.direction : 'neutral';
+  const buffer = price * 0.012;
+  const stop = direction === 'short' ? price + buffer : price - buffer;
+  return {
+    summary: 'AI временно недоступен. Этот fallback использует только введённый контекст и не распознаёт изображение.',
+    scenario: direction === 'long' ? 'Лонг только после подтверждения' : direction === 'short' ? 'Шорт только после подтверждения' : 'Наблюдение до появления сигнала',
+    bias: direction,
+    confidence: 'low',
+    detected: ['Содержимое скриншота не распознано в fallback-режиме'],
+    entryCondition: 'Проверь реакцию цены, объём и старший таймфрейм вручную',
+    invalidation: price ? `${direction === 'short' ? 'закрепление выше' : 'закрепление ниже'} ${stop.toFixed(2)}` : 'Определи уровень отмены до входа',
+    targets: ['Не рассчитываются без подтверждённого AI-разбора'],
+    risks: ['Один скриншот не показывает новости, ликвидность, funding и комиссии'],
+    learningNote: `Используй результат только как учебную заметку для ${pair}.`
+  };
+}
+
+async function analyzeChartWithVision(input) {
+  const { imageData, image_url: imageUrl, pair = 'BTC/USDT', timeframe = '1 час', price = 0, direction = 'neutral' } = input || {};
+  const image = imageData || imageUrl;
+  const validImage = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(image || '') || /^https:\/\//.test(image || '');
+  if (!validImage) throw new Error('invalid_image');
+  if ((image || '').length > 11 * 1024 * 1024) throw new Error('image_too_large');
+  if (!process.env.MANUS_API_URL || !process.env.MANUS_API_KEY) throw new Error('ai_not_configured');
+  const prompt = `Ты осторожный учебный аналитик криптовалютных графиков. Проанализируй изображение графика, не обещай результат и не давай безусловную команду покупать или продавать. Верни только JSON без markdown со следующими полями: summary (строка), scenario (строка), bias (одно из neutral,long,short), confidence (одно из low,medium), detected (массив строк: что реально видно на изображении), entryCondition (строка), invalidation (строка), targets (массив строк), risks (массив строк), learningNote (строка). Если данных на графике не хватает, прямо напиши это и выбери bias neutral. Контекст пользователя: пара ${String(pair).slice(0, 30)}, таймфрейм ${String(timeframe).slice(0, 20)}, введённая цена ${Number(price) || 0}, интерес ${direction}. Сначала опиши видимые элементы, затем учебный сценарий и условия его отмены.`;
+  const response = await fetch(`${process.env.MANUS_API_URL}/v1/chat/completions`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${process.env.MANUS_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: process.env.CG_VISION_MODEL || 'gpt-5-mini',
+      max_completion_tokens: 900,
+      reasoning: { effort: 'minimal' },
+      messages: [{ role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: image, detail: 'auto' } }] }]
+    })
+  });
+  const payload = await response.json();
+  if (!response.ok || payload.error) throw new Error('ai_request_failed');
+  const content = payload.choices?.[0]?.message?.content;
+  if (!content) throw new Error('ai_empty_response');
+  return parseModelJson(content);
+}
+
 const mime = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml' };
 
 async function serveStatic(res, pathname) {
@@ -128,6 +194,17 @@ const server = http.createServer(async (req, res) => {
       if (query) items = items.filter(item => `${item.title} ${item.source} ${item.asset}`.toLowerCase().includes(query));
       if (asset !== 'all') items = items.filter(item => item.asset === asset);
       return send(res, 200, { items, updatedAt: new Date().toISOString(), live: !items.every(item => item.id.startsWith('fallback-')) });
+    }
+    if (url.pathname === '/api/analyze' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      try {
+        const result = await analyzeChartWithVision(body);
+        return send(res, 200, { result, mode: 'vision', updatedAt: new Date().toISOString() });
+      } catch (error) {
+        console.error('AI analysis failed:', error.message);
+        if (['invalid_image', 'image_too_large', 'payload_too_large'].includes(error.message)) return send(res, 400, { error: 'Проверь формат и размер изображения' });
+        return send(res, 200, { result: visionFallback(body), mode: 'fallback', warning: 'AI-анализ временно недоступен', updatedAt: new Date().toISOString() });
+      }
     }
     if (url.pathname === '/api/market') return send(res, 200, { data: await getMarket(), updatedAt: new Date().toISOString() });
     return serveStatic(res, url.pathname);
