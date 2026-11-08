@@ -160,3 +160,16 @@ h2 { margin: 8px 0 0; font-size: 20px; letter-spacing: -.04em; font-weight: 600;
 @media (max-width: 720px) { .settings-controls { gap: 4px; }.settings-button { min-width: 29px; height: 29px; padding: 0 6px; }.top-actions { gap: 6px; } }
 
 .news-translation { margin: 4px 0 3px !important; color: var(--teal) !important; font-size: 10px !important; }
+
+/* Learning cards: readable accordion body instead of narrow grid column */
+.lesson-card { grid-template-columns: 52px minmax(0, 1fr) auto; align-items: start; }
+.lesson-card > div:nth-child(2) { min-width: 0; }
+.lesson-card h3, .lesson-card p { overflow-wrap: normal; word-break: normal; }
+.lesson-card button { align-self: start; white-space: nowrap; }
+.lesson-body { grid-column: 2 / -1; width: auto; margin-top: 4px; padding: 14px 16px; border-top: 1px solid var(--line); border-left: 2px solid var(--teal-dim); background: var(--surface-2); border-radius: 0 7px 7px 0; }
+.lesson-body p { max-width: 74ch; margin: 0 !important; color: var(--text) !important; font-size: 13px !important; line-height: 1.7 !important; white-space: normal; }
+@media (max-width: 720px) {
+  .lesson-card { grid-template-columns: 42px minmax(0, 1fr); align-items: start; }
+  .lesson-card button { grid-column: 2; justify-self: start; margin-top: 3px; }
+  .lesson-body { grid-column: 1 / -1; margin-top: 8px; padding: 13px 14px; }
+}
