@@ -143,3 +143,18 @@ h2 { margin: 8px 0 0; font-size: 20px; letter-spacing: -.04em; font-weight: 600;
 .paper-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 10px; align-items: center; padding: 11px 0; border-bottom: 1px solid #1c2b32; }
 .paper-row span { color: #7f949a; font-size: 10px; }.paper-row strong { display: block; margin-top: 3px; color: #d5e0e0; font: 12px ui-monospace, monospace; }.paper-row .pnl-positive { color: var(--green); }.paper-row .pnl-negative { color: var(--red); }.paper-empty { color: var(--muted); font-size: 12px; padding: 15px 0; }
 @media (max-width: 720px) { .source-grid { grid-template-columns: 1fr 1fr; }.paper-layout { grid-template-columns: 1fr; }.paper-row { grid-template-columns: 1fr 1fr; }.paper-row button { grid-column: 2; justify-self: end; } }
+
+.settings-controls { display: flex; align-items: center; gap: 6px; }
+.settings-button { min-width: 31px; height: 31px; padding: 0 8px; border: 1px solid var(--line); border-radius: 7px; color: var(--muted); background: var(--surface); font: 10px ui-monospace, monospace; transition: .18s; }
+.settings-button:hover { color: var(--teal); border-color: var(--teal-dim); }
+:root[data-theme="light"] { --bg: #f2f6f7; --surface: #ffffff; --surface-2: #f1f5f5; --surface-3: #e7eeee; --line: #d8e1e3; --muted: #60727a; --text: #17252b; --teal: #087f75; --teal-dim: #61aaa3; --shadow: 0 16px 40px rgba(29, 61, 64, .12); }
+:root[data-theme="light"] body { background: var(--bg); }
+:root[data-theme="light"] .sidebar { background: #e9f0f1; border-color: #d6e2e3; }
+:root[data-theme="light"] .brand-mark span { background: #e9f0f1; }
+:root[data-theme="light"] .topbar { border-color: #d6e2e3; }
+:root[data-theme="light"] .hero-block { background: radial-gradient(circle at 79% 20%, rgba(8,127,117,.1), transparent 32%), linear-gradient(110deg, #ffffff, #edf6f5); border-color: #cbdedd; }
+:root[data-theme="light"] .notice-card, :root[data-theme="light"] .disclaimer-strip { background: #fff9ec; }
+:root[data-theme="light"] .nav-item.active { background: #dceceb; }
+:root[data-theme="light"] .context-form input, :root[data-theme="light"] .context-form select, :root[data-theme="light"] .risk-form input, :root[data-theme="light"] .news-toolbar select, :root[data-theme="light"] .search-box, :root[data-theme="light"] .journal-panel textarea, :root[data-theme="light"] .source-grid a, :root[data-theme="light"] .next-lesson { background: #f6fafa; }
+:root[data-theme="light"] .market-card, :root[data-theme="light"] .panel { box-shadow: 0 8px 25px rgba(25, 64, 67, .05); }
+@media (max-width: 720px) { .settings-controls { gap: 4px; }.settings-button { min-width: 29px; height: 29px; padding: 0 6px; }.top-actions { gap: 6px; } }

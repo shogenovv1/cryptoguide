@@ -7,13 +7,18 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = path.join(ROOT, 'public');
 const PORT = Number(process.env.PORT || 3000);
 const MAX_BODY_BYTES = 12 * 1024 * 1024;
-const newsCache = { at: 0, items: [] };
+const newsCache = { ru: { at: 0, items: [] }, en: { at: 0, items: [] } };
 const marketCache = { at: 0, data: null };
 
 const fallbackNews = [
   { id: 'fallback-1', title: 'Крипторынок ждёт новых сигналов: проверь контекст перед сделкой', source: 'CryptoGuide briefing', time: new Date().toISOString(), asset: 'BTC', url: 'https://www.coindesk.com/' },
   { id: 'fallback-2', title: 'Почему новости важны для волатильности и управления риском', source: 'CryptoGuide briefing', time: new Date(Date.now() - 3600000).toISOString(), asset: 'Market', url: 'https://cointelegraph.com/' },
   { id: 'fallback-3', title: 'Учебная заметка: плечо увеличивает и потенциальную прибыль, и убыток', source: 'CryptoGuide briefing', time: new Date(Date.now() - 7200000).toISOString(), asset: 'Futures', url: 'https://www.coindesk.com/' }
+];
+const fallbackNewsRu = [
+  { id: 'fallback-ru-1', title: 'Крипторынок ждёт новых сигналов: проверь контекст перед сделкой', source: 'CryptoGuide briefing', time: new Date().toISOString(), asset: 'BTC', url: 'https://forklog.com/' },
+  { id: 'fallback-ru-2', title: 'Почему новости важны для волатильности и управления риском', source: 'CryptoGuide briefing', time: new Date(Date.now() - 3600000).toISOString(), asset: 'Market', url: 'https://www.rbc.ru/crypto/' },
+  { id: 'fallback-ru-3', title: 'Учебная заметка: плечо увеличивает и потенциальную прибыль, и убыток', source: 'CryptoGuide briefing', time: new Date(Date.now() - 7200000).toISOString(), asset: 'Futures', url: 'https://forklog.com/' }
 ];
 
 const fallbackMarket = {
@@ -42,11 +47,11 @@ function extractTag(block, tag) {
 
 function classifyAsset(title) {
   const value = title.toLowerCase();
-  if (/bitcoin|btc/.test(value)) return 'BTC';
-  if (/ethereum|eth/.test(value)) return 'ETH';
-  if (/solana|sol/.test(value)) return 'SOL';
-  if (/xrp|ripple/.test(value)) return 'XRP';
-  if (/defi|dex|stablecoin/.test(value)) return 'DeFi';
+  if (/bitcoin|биткоин|btc/.test(value)) return 'BTC';
+  if (/ethereum|эфир|эфириум|eth/.test(value)) return 'ETH';
+  if (/solana|солана|sol/.test(value)) return 'SOL';
+  if (/xrp|ripple|рипл/.test(value)) return 'XRP';
+  if (/defi|dex|stablecoin|стейбл/.test(value)) return 'DeFi';
   return 'Market';
 }
 
@@ -72,18 +77,22 @@ async function fetchWithTimeout(url, ms = 6500) {
   }
 }
 
-async function getNews() {
-  if (Date.now() - newsCache.at < 180000 && newsCache.items.length) return newsCache.items;
-  const sources = [
+async function getNews(lang = 'ru') {
+  const cache = newsCache[lang] || newsCache.ru;
+  if (Date.now() - cache.at < 180000 && cache.items.length) return cache.items;
+  const sources = lang === 'en' ? [
     ['CoinDesk', 'https://www.coindesk.com/arc/outboundfeeds/rss/'],
     ['Cointelegraph', 'https://cointelegraph.com/rss']
+  ] : [
+    ['ForkLog', 'https://forklog.com/feed/'],
+    ['Google News RU', 'https://news.google.com/rss/search?q=%D0%BA%D1%80%D0%B8%D0%BF%D1%82%D0%BE%D0%B2%D0%B0%D0%BB%D1%8E%D1%82%D1%8B%20OR%20%D0%B1%D0%B8%D1%82%D0%BA%D0%BE%D0%B8%D0%BD%20OR%20%D1%8D%D1%84%D0%B8%D1%80%D0%B8%D1%83%D0%BC&hl=ru&gl=RU&ceid=RU:ru']
   ];
   const batches = await Promise.allSettled(sources.map(async ([source, url]) => parseFeed(await fetchWithTimeout(url), source)));
   const items = batches.flatMap(result => result.status === 'fulfilled' ? result.value : []);
   const unique = [...new Map(items.map(item => [item.title, item])).values()].sort((a, b) => Date.parse(b.time) - Date.parse(a.time));
-  newsCache.items = unique.length ? unique.slice(0, 24) : fallbackNews;
-  newsCache.at = Date.now();
-  return newsCache.items;
+  cache.items = unique.length ? unique.slice(0, 24) : (lang === 'en' ? fallbackNews : fallbackNewsRu);
+  cache.at = Date.now();
+  return cache.items;
 }
 
 async function getMarket() {
@@ -190,7 +199,8 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/news') {
       const query = (url.searchParams.get('q') || '').trim().toLowerCase();
       const asset = url.searchParams.get('asset') || 'all';
-      let items = await getNews();
+      const lang = url.searchParams.get('lang') === 'en' ? 'en' : 'ru';
+      let items = await getNews(lang);
       if (query) items = items.filter(item => `${item.title} ${item.source} ${item.asset}`.toLowerCase().includes(query));
       if (asset !== 'all') items = items.filter(item => item.asset === asset);
       return send(res, 200, { items, updatedAt: new Date().toISOString(), live: !items.every(item => item.id.startsWith('fallback-')) });

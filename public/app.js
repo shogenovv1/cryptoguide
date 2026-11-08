@@ -8,14 +8,17 @@ function readArray(key) {
     return [];
   }
 }
-const state = { currentView: 'overview', news: [], selectedImage: null, lessons: [], history: readArray('cg-history') };
+const state = { currentView: 'overview', news: [], selectedImage: null, imageData: null, lessons: [], history: readArray('cg-history'), lang: localStorage.getItem('cg-lang') || 'ru', theme: localStorage.getItem('cg-theme') || 'dark' };
 
 const lessons = [
   { id: 'p2p', title: 'P2P: обмен без спешки', duration: '6 мин · база', description: 'Что происходит между покупателем и продавцом, как работает escrow и какие красные флаги нельзя игнорировать.', body: 'P2P — это сделка между пользователями через площадку. Проверяй имя получателя, не уходи в сторонние мессенджеры, не подтверждай оплату по скриншоту и не отпускай актив, пока деньги не видны в твоём банке.' },
   { id: 'spot', title: 'Спот: купить сам актив', duration: '8 мин · база', description: 'Разница между рыночным и лимитным ордером, комиссия и почему спот не равен «без риска».', body: 'На споте ты покупаешь или продаёшь сам актив без ликвидации от плеча. Но цена всё равно может двигаться против тебя. Лимитный ордер задаёт цену, рыночный — приоритет исполнения.' },
   { id: 'chart', title: 'График: читать, а не угадывать', duration: '10 мин · практика', description: 'Свечи, таймфрейм, тренд, поддержка и сопротивление как язык гипотез.', body: 'Сначала определи старший контекст, потом смотри структуру движения. Уровень — это зона интереса, а не магическая линия. Ищи реакцию цены и заранее решай, где сценарий отменяется.' },
   { id: 'futures', title: 'Фьючерсы: плечо под контролем', duration: '12 мин · осторожно', description: 'Лонг, шорт, маржа, funding и ликвидация — до первой реальной сделки.', body: 'Фьючерсы позволяют открыть позицию на движение цены, но плечо увеличивает скорость убытка. Ликвидация может наступить раньше, чем кажется. Сначала paper-trading, потом минимальный размер, а не наоборот.' },
-  { id: 'risk', title: 'Риск: главный торговый навык', duration: '7 мин · фундамент', description: 'Как ограничить убыток, рассчитать позицию и почему «отыграться» — плохой план.', body: 'Определи допустимый убыток до входа. Размер позиции зависит от риска и расстояния до стопа, а не от желания заработать. Если сценарий нельзя описать цифрами, его нельзя нормально проверить.' }
+  { id: 'risk', title: 'Риск: главный торговый навык', duration: '7 мин · фундамент', description: 'Как ограничить убыток, рассчитать позицию и почему «отыграться» — плохой план.', body: 'Определи допустимый убыток до входа. Размер позиции зависит от риска и расстояния до стопа, а не от желания заработать. Если сценарий нельзя описать цифрами, его нельзя нормально проверить.' },
+  { id: 'orders', title: 'Ордера: как биржа исполняет заявку', duration: '9 мин · практика', description: 'Market, limit, stop и stop-limit: чем они отличаются на простом примере.', body: 'Market старается исполнить заявку сразу по доступной цене. Limit ждёт твою цену. Stop активирует заявку после заданного уровня. Перед отправкой проверь направление, размер, цену и комиссию.' },
+  { id: 'security', title: 'Безопасность: не потерять аккаунт', duration: '8 мин · обязательно', description: '2FA, антифишинг, проверка адреса и правила, которые важнее любой стратегии.', body: 'Никому не отправляй пароль, коды 2FA и seed-фразу. Открывай Bybit только через официальный адрес, включи 2FA и антифишинговый код. Сначала сделай тестовый перевод на маленькую сумму.' },
+  { id: 'plan', title: 'Торговый план: что делать до графика', duration: '10 мин · система', description: 'Как превратить эмоции в чек-лист: идея, вход, отмена, размер и разбор результата.', body: 'До графика запиши: какой рынок, какой сценарий, где подтверждение, где отмена и сколько ты рискуешь. После — отметь, следовал ли правилам. Хороший процесс важнее одной удачной сделки.' }
 ];
 
 const glossary = [
@@ -30,8 +33,30 @@ const glossary = [
   ['Лимитный ордер', 'Заявка с заданной ценой. Она может не исполниться, если рынок не дойдёт до неё.', 'спот'],
   ['Рыночный ордер', 'Заявка на исполнение по доступной цене. Итоговая цена может отличаться из-за проскальзывания.', 'спот'],
   ['Стоп-лосс', 'Предварительно заданная точка выхода, если сценарий оказался неверным.', 'риск'],
-  ['Таймфрейм', 'Масштаб одной свечи: 15 минут, час, 4 часа и так далее.', 'график']
+  ['Таймфрейм', 'Масштаб одной свечи: 15 минут, час, 4 часа и так далее.', 'график'],
+  ['Поддержка', 'Зона, где раньше появлялся спрос. Цена не обязана от неё отскочить.', 'график'],
+  ['Сопротивление', 'Зона, где раньше появлялось предложение. Это область, а не точная линия.', 'график'],
+  ['Спред', 'Разница между лучшей ценой покупки и продажи. Это одна из скрытых издержек.', 'спот'],
+  ['Проскальзывание', 'Разница между ожидаемой и фактической ценой исполнения заявки.', 'спот'],
+  ['Изолированная маржа', 'Режим, где риск позиции ограничен выделенной для неё маржой.', 'фьючерсы'],
+  ['Кросс-маржа', 'Режим, где для поддержания позиции может использоваться доступный баланс аккаунта.', 'фьючерсы'],
+  ['Волатильность', 'Сила и скорость изменения цены. Чем она выше, тем шире возможный результат.', 'риск'],
+  ['DCA', 'Постепенная покупка частями по плану. Это метод распределения входа, а не гарантия прибыли.', 'стратегия']
 ];
+const lessonsEn = [
+  { id: 'p2p', title: 'P2P: exchange without rushing', duration: '6 min · basics', description: 'What happens between buyer and seller, how escrow works and which red flags matter.', body: 'P2P is a deal between users through a platform. Check the recipient name, stay inside the platform, never trust a payment screenshot and release assets only after the money is visible in your bank.' },
+  { id: 'spot', title: 'Spot: buying the asset', duration: '8 min · basics', description: 'Market versus limit orders, fees and why spot is not risk-free.', body: 'On spot you buy or sell the asset itself without futures leverage. Price can still move against you. A limit order sets a price; a market order prioritizes execution.' },
+  { id: 'chart', title: 'Charts: read, do not guess', duration: '10 min · practice', description: 'Candles, timeframe, trend, support and resistance as a language of hypotheses.', body: 'Start with the higher-timeframe context, then study structure. A level is a zone of interest, not magic. Look for a reaction and decide where the scenario is invalid before entering.' },
+  { id: 'futures', title: 'Futures: keep leverage under control', duration: '12 min · caution', description: 'Long, short, margin, funding and liquidation before your first real trade.', body: 'Futures let you trade a price move, but leverage speeds up losses. Liquidation may happen sooner than expected. Start with paper trading, then use a small size.' },
+  { id: 'risk', title: 'Risk: the core trading skill', duration: '7 min · foundation', description: 'How to cap a loss, size a position and avoid revenge trading.', body: 'Define the acceptable loss before entry. Position size depends on risk and stop distance, not on the profit you want. If a scenario cannot be described with numbers, it cannot be checked well.' },
+  { id: 'orders', title: 'Orders: how execution works', duration: '9 min · practice', description: 'Market, limit, stop and stop-limit explained with a simple example.', body: 'Market tries to execute now at available prices. Limit waits for your price. Stop activates after a chosen level. Before sending an order, check side, size, price and fees.' },
+  { id: 'security', title: 'Security: protect the account', duration: '8 min · essential', description: '2FA, anti-phishing and address checks matter more than any strategy.', body: 'Never share your password, 2FA codes or seed phrase. Open Bybit through the official address, enable 2FA and an anti-phishing code. Make a small test transfer first.' },
+  { id: 'plan', title: 'Trading plan: before the chart', duration: '10 min · system', description: 'Turn emotions into a checklist: idea, entry, invalidation, size and review.', body: 'Before the chart write: market, scenario, confirmation, invalidation and risk. Afterwards note whether you followed the rules. Process matters more than one lucky trade.' }
+];
+const glossaryEn = [
+  ['Spot', 'Buying or selling the asset itself without a futures contract or leverage.', 'market'], ['P2P', 'A user-to-user trade through a platform. Safety depends on escrow rules and payment verification.', 'market'], ['Long', 'A scenario where a trader expects price to rise. It is not a guarantee.', 'futures'], ['Short', 'A scenario where a trader expects price to fall. Loss is possible if price rises.', 'futures'], ['Leverage', 'A multiplier of position size versus collateral. It increases potential profit and loss.', 'risk'], ['Margin', 'Collateral supporting a position. Rules depend on the specific contract.', 'futures'], ['Liquidation', 'Forced closing of a position when collateral is no longer enough to cover losses.', 'risk'], ['Funding rate', 'A periodic payment between sides of a perpetual futures contract.', 'futures'], ['Limit order', 'An order with a chosen price. It may not execute if the market never reaches it.', 'spot'], ['Market order', 'An order executed at available prices. Slippage can change the final price.', 'spot'], ['Stop-loss', 'A planned exit point if the scenario proves wrong.', 'risk'], ['Timeframe', 'The duration represented by one candle: 15 minutes, one hour, four hours and so on.', 'chart']
+];
+glossaryEn.push(['Support', 'A zone where demand appeared before. Price does not have to bounce from it.', 'chart'], ['Resistance', 'A zone where supply appeared before. It is an area, not an exact line.', 'chart'], ['Spread', 'The difference between the best buy and sell prices. It is a trading cost.', 'spot'], ['Slippage', 'The difference between expected and actual execution price.', 'spot'], ['Isolated margin', 'A mode where position risk is limited to its allocated margin.', 'futures'], ['Cross margin', 'A mode where available account balance may support the position.', 'futures'], ['Volatility', 'How strongly and quickly price changes. Higher volatility means a wider range of outcomes.', 'risk'], ['DCA', 'Buying in planned portions over time. It distributes entry; it does not guarantee profit.', 'strategy']);
 
 function formatPrice(value) {
   if (!value) return 'нет данных';
@@ -40,12 +65,38 @@ function formatPrice(value) {
 function formatDate(value, short = false) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'время неизвестно';
-  return new Intl.DateTimeFormat('ru-RU', short ? { day: '2-digit', month: 'short' } : { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(date);
+  return new Intl.DateTimeFormat(state.lang === 'en' ? 'en-US' : 'ru-RU', short ? { day: '2-digit', month: 'short' } : { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(date);
 }
 function showToast(message) {
   const toast = $('#toast');
   toast.textContent = message; toast.classList.add('show');
   clearTimeout(showToast.timer); showToast.timer = setTimeout(() => toast.classList.remove('show'), 2800);
+}
+function applyLanguage() {
+  const en = state.lang === 'en';
+  document.documentElement.lang = state.lang;
+  document.documentElement.dataset.theme = state.theme;
+  $('#langToggle').textContent = en ? 'RU' : 'EN';
+  $('#themeToggle').textContent = state.theme === 'dark' ? '☼' : '●';
+  const nav = { overview: en ? 'Overview' : 'Обзор', analyzer: en ? 'Chart analysis' : 'Разбор графика', news: en ? 'News' : 'Новости', learning: en ? 'Learning' : 'Учёба', glossary: en ? 'Glossary' : 'Термины', paper: 'Paper PNL', risk: en ? 'Risk' : 'Риск' };
+  $$('.nav-item').forEach(button => { const label = button.querySelector('span:nth-child(2)'); if (label) label.textContent = nav[button.dataset.view] || label.textContent; });
+  const copy = en ? {
+    '.mode-pill span': 'Bybit learning mode', '#view-overview .hero-block .eyebrow': 'MARKET VIEW <span class="teal-line"></span>', '#view-overview h1': 'Understand<br /><em>the context.</em>', '#view-overview .hero-copy': 'Learn to see the market as a whole: chart, news and risk in one calm workspace.', '#view-overview .text-button': 'Start analysis <span>↗</span>', '#view-overview .notice-card strong': 'This is a learning assistant, not a trading bot', '#view-overview .notice-card p': 'A screenshot shows only part of the picture. CryptoGuide shows scenarios and risk, but never guarantees results or places orders.', '#view-overview .section-heading h2': 'Key assets', '#view-overview .section-heading .ghost-button': 'View news <span>→</span>', '#view-overview .learning-progress h2': 'Step-by-step learning', '#view-overview .latest-news h2': 'Latest signals', '#view-overview .learning-progress .primary-button': 'Continue learning <span>→</span>', '#view-overview .latest-news .ghost-button': 'All news <span>→</span>', '#view-analyzer h1': 'Let’s look<br /><em>together.</em>', '#view-analyzer .page-intro-note': 'Upload a Bybit screenshot.<br />The MVP uses it as context, not as a price prediction.', '#analyzeButton': 'Analyze with AI Vision <span>→</span>', '#view-news h1': 'News without<br /><em>noise.</em>', '#view-news .page-intro-note': 'Fresh posts<br />from open RSS sources.', '#refreshNews': '↻ Refresh', '#view-glossary h1': 'Words<br /><em>that matter.</em>', '#view-paper h1': 'Practice<br /><em>without money.</em>', '#view-risk h1': 'Risk is<br /><em>the return.</em>'
+  } : {
+    '.mode-pill span': 'Bybit учебный режим', '#view-overview .hero-block .eyebrow': 'ПАНЕЛЬ НАБЛЮДЕНИЯ <span class="teal-line"></span>', '#view-overview h1': 'Сначала поймём<br /><em>контекст.</em>', '#view-overview .hero-copy': 'Учись видеть рынок целиком: график, новости и риск в одном спокойном пространстве.', '#view-overview .text-button': 'Начать разбор <span>↗</span>', '#view-overview .notice-card strong': 'Это учебный помощник, не торговый робот', '#view-overview .notice-card p': 'Скриншот даёт только часть картины. CryptoGuide показывает сценарии, вопросы для проверки и риск — но не гарантирует результат и не размещает ордера.', '#view-overview .section-heading h2': 'Ключевые активы', '#view-overview .section-heading .ghost-button': 'Смотреть новости <span>→</span>', '#view-overview .learning-progress h2': 'Обучение по шагам', '#view-overview .latest-news h2': 'Последние сигналы', '#view-overview .learning-progress .primary-button': 'Продолжить обучение <span>→</span>', '#view-overview .latest-news .ghost-button': 'Все новости <span>→</span>', '#view-analyzer h1': 'Посмотрим<br /><em>вместе.</em>', '#view-analyzer .page-intro-note': 'Загрузи скриншот с Bybit.<br />MVP использует его как контекст, а не как vision-прогноз.', '#analyzeButton': 'Разобрать через AI Vision <span>→</span>', '#view-news h1': 'Новости без<br /><em>шума.</em>', '#view-news .page-intro-note': 'Актуальные публикации<br />из открытых RSS-источников.', '#refreshNews': '↻ Обновить', '#view-glossary h1': 'Слова,<br /><em>которые важны.</em>', '#view-paper h1': 'Практика<br /><em>без денег.</em>', '#view-risk h1': 'Риск — это<br /><em>доходность.</em>'
+  };
+  Object.entries(copy).forEach(([selector, value]) => { const element = $(selector); if (element) element.innerHTML = value; });
+  const staticCopy = en ? {
+    '.sidebar-note .eyebrow': 'PRINCIPLE #01', '.sidebar-note p': 'Context first. Then a scenario. A trade only after risk is calculated.', '.sidebar-footer': '<span class="status-dot"></span> Data refreshes on request', '#view-overview .hero-action .mini-label': 'TODAY', '#view-overview .learning-progress .eyebrow': 'YOUR ROUTE', '#view-overview .latest-news .eyebrow': 'FROM THE FEED', '#view-news .news-meta span:last-child': 'Auto-refresh: every 5 minutes', '#view-news .source-directory .eyebrow': 'SOURCE DIRECTORY', '#view-news .source-directory h2': 'Where to verify news', '#view-news .source-directory .step-tag': 'open sources', '#view-learning .page-intro-note': 'Short lessons instead of<br />jumping straight into futures.', '#view-glossary .page-intro-note': 'Search a term — get<br />meaning and practical risk.', '#view-paper .page-intro-note': 'Record simulated trades,<br />review PNL and learn from notes.', '#view-risk .page-intro-note': 'First define the risk.<br />Then calculate position size.', '.app-footer span:first-child': 'CRYPTOGUIDE / learning tool', '.app-footer span:last-child': 'Not financial advice · 2026'
+  } : {
+    '.sidebar-note .eyebrow': 'ПРИНЦИП №01', '.sidebar-note p': 'Сначала контекст. Потом сценарий. Сделка — только после расчёта риска.', '.sidebar-footer': '<span class="status-dot"></span> Данные обновляются при запросе', '#view-overview .hero-action .mini-label': 'СЕГОДНЯ', '#view-overview .learning-progress .eyebrow': 'ТВОЙ МАРШРУТ', '#view-overview .latest-news .eyebrow': 'ИЗ ЛЕНТЫ', '#view-news .news-meta span:last-child': 'Автообновление: каждые 5 минут', '#view-news .source-directory .eyebrow': 'SOURCE DIRECTORY', '#view-news .source-directory h2': 'Где проверять новости', '#view-news .source-directory .step-tag': 'открытые источники', '#view-learning .page-intro-note': 'Короткие уроки вместо<br />прыжка сразу во фьючерсы.', '#view-glossary .page-intro-note': 'Ищи термин — получай<br />смысл и практический риск.', '#view-paper .page-intro-note': 'Записывай симулированные сделки,<br />смотри PNL и учись на журнале.', '#view-risk .page-intro-note': 'Сначала размер риска.<br />Потом размер позиции.', '.app-footer span:first-child': 'CRYPTOGUIDE / учебный инструмент', '.app-footer span:last-child': 'Не финансовая рекомендация · 2026'
+  };
+  Object.entries(staticCopy).forEach(([selector, value]) => { const element = $(selector); if (element) element.innerHTML = value; });
+  document.title = en ? 'CryptoGuide — learning curator' : 'CryptoGuide — учебный куратор';
+  if ($('#newsSearch')) $('#newsSearch').placeholder = en ? 'Search by title or asset...' : 'Искать по заголовку или активу...';
+  if ($('#termSearch')) $('#termSearch').placeholder = en ? 'For example: margin, funding, limit order...' : 'Например: маржа, funding, лимитный ордер...';
+  renderLessons(); renderGlossary($('#termSearch')?.value || '');
+  const label = $(`.nav-item[data-view="${state.currentView}"] span:nth-child(2)`)?.textContent || (en ? 'Overview' : 'Обзор'); $('#crumbLabel').textContent = label.toUpperCase();
 }
 function setView(view) {
   state.currentView = view;
@@ -63,7 +114,7 @@ function renderMarket(data) {
     const change = Number(item.usd_24h_change || 0);
     const cls = change < 0 ? 'down' : '';
     const sign = change > 0 ? '+' : '';
-    return `<article class="market-card"><div class="asset-label"><span>${symbol}</span> / ${name}</div><div class="asset-price">${item.usd ? '$' + formatPrice(item.usd) : 'нет данных'}</div><div class="asset-change ${cls}">${item.usd ? `${sign}${change.toFixed(2)}% за 24ч` : 'источник недоступен'}</div><span class="asset-time">PUBLIC DATA</span></article>`;
+    return `<article class="market-card"><div class="asset-label"><span>${symbol}</span> / ${name}</div><div class="asset-price">${item.usd ? '$' + formatPrice(item.usd) : (state.lang === 'en' ? 'no data' : 'нет данных')}</div><div class="asset-change ${cls}">${item.usd ? `${sign}${change.toFixed(2)}% ${state.lang === 'en' ? '24h' : 'за 24ч'}` : (state.lang === 'en' ? 'source unavailable' : 'источник недоступен')}</div><span class="asset-time">PUBLIC DATA</span></article>`;
   }).join('');
 }
 async function loadMarket() {
@@ -71,7 +122,7 @@ async function loadMarket() {
   catch { renderMarket(null); }
 }
 function renderCompactNews(items = []) {
-  $('#latestNewsList').innerHTML = items.slice(0, 3).map(item => `<div class="compact-news-item"><span class="news-bullet"></span><div><a href="${safeExternalUrl(item.url)}" target="_blank" rel="noreferrer">${escapeHtml(item.title)}</a><small>${escapeHtml(item.source)} · ${formatDate(item.time)}</small></div></div>`).join('') || '<div class="loading-row">Пока нет новостей для показа.</div>';
+  $('#latestNewsList').innerHTML = items.slice(0, 3).map(item => `<div class="compact-news-item"><span class="news-bullet"></span><div><a href="${safeExternalUrl(item.url)}" target="_blank" rel="noreferrer">${escapeHtml(item.title)}</a><small>${escapeHtml(item.source)} · ${formatDate(item.time)}</small></div></div>`).join('') || `<div class="loading-row">${state.lang === 'en' ? 'No news to show yet.' : 'Пока нет новостей для показа.'}</div>`;
 }
 function escapeHtml(text = '') { return text.replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char])); }
 function safeExternalUrl(value = '') {
@@ -83,25 +134,26 @@ function safeExternalUrl(value = '') {
   }
 }
 async function loadNews() {
-  $('#newsStatus').textContent = 'Обновляю ленту...';
+  $('#newsStatus').textContent = state.lang === 'en' ? 'Refreshing feed...' : 'Обновляю ленту...';
   const q = encodeURIComponent($('#newsSearch')?.value.trim() || '');
   const asset = encodeURIComponent($('#newsAsset')?.value || 'all');
   try {
-    const response = await fetch(`/api/news?q=${q}&asset=${asset}`);
+    const response = await fetch(`/api/news?q=${q}&asset=${asset}&lang=${state.lang}`);
     const payload = await response.json(); state.news = payload.items || [];
     renderNews(state.news); renderCompactNews(state.news);
-    $('#newsStatus').textContent = `${state.news.length} публикаций · обновлено ${formatDate(payload.updatedAt)}` + (payload.live ? '' : ' · fallback-режим');
+    $('#newsStatus').textContent = state.lang === 'en' ? `${state.news.length} posts · updated ${formatDate(payload.updatedAt)}` + (payload.live ? '' : ' · fallback mode') : `${state.news.length} публикаций · обновлено ${formatDate(payload.updatedAt)}` + (payload.live ? '' : ' · fallback-режим');
   } catch {
-    $('#newsStatus').textContent = 'Не удалось обновить ленту. Попробуй ещё раз.';
-    $('#newsList').innerHTML = '<div class="empty-state"><strong>Источник временно недоступен</strong><p>Проверь соединение и повтори обновление.</p></div>';
+    $('#newsStatus').textContent = state.lang === 'en' ? 'Could not refresh the feed. Try again.' : 'Не удалось обновить ленту. Попробуй ещё раз.';
+    $('#newsList').innerHTML = `<div class="empty-state"><strong>${state.lang === 'en' ? 'Source temporarily unavailable' : 'Источник временно недоступен'}</strong><p>${state.lang === 'en' ? 'Check the connection and refresh.' : 'Проверь соединение и повтори обновление.'}</p></div>`;
   }
 }
 function renderNews(items) {
-  $('#newsList').innerHTML = items.map(item => `<article class="news-row"><div class="news-source">${escapeHtml(item.source)}</div><div><h3><a href="${safeExternalUrl(item.url)}" target="_blank" rel="noreferrer">${escapeHtml(item.title)}</a></h3><p>${formatDate(item.time)} · открывается на сайте источника</p></div><div class="news-tag">${escapeHtml(item.asset)}</div></article>`).join('') || '<div class="empty-state"><strong>Ничего не найдено</strong><p>Измени запрос или выбери другую тему.</p></div>';
+  $('#newsList').innerHTML = items.map(item => `<article class="news-row"><div class="news-source">${escapeHtml(item.source)}</div><div><h3><a href="${safeExternalUrl(item.url)}" target="_blank" rel="noreferrer">${escapeHtml(item.title)}</a></h3><p>${formatDate(item.time)} · ${state.lang === 'en' ? 'open source website' : 'открывается на сайте источника'}</p></div><div class="news-tag">${escapeHtml(item.asset)}</div></article>`).join('') || `<div class="empty-state"><strong>${state.lang === 'en' ? 'Nothing found' : 'Ничего не найдено'}</strong><p>${state.lang === 'en' ? 'Change the query or topic.' : 'Измени запрос или выбери другую тему.'}</p></div>`;
 }
 function renderLessons() {
   const completed = readArray('cg-lessons'); state.lessons = completed;
-  $('#lessonList').innerHTML = lessons.map((lesson, index) => { const done = completed.includes(lesson.id); return `<article class="lesson-card ${done ? 'done' : ''}"><div class="lesson-no">${String(index + 1).padStart(2, '0')}</div><div><h3>${lesson.title}</h3><p>${lesson.description}</p><small class="asset-label">${lesson.duration}</small></div><button data-lesson="${lesson.id}">${done ? 'Пройдено ✓' : 'Открыть урок'}</button><div class="lesson-body hidden" id="lesson-${lesson.id}"><p>${lesson.body}</p></div></article>`; }).join('');
+  const catalog = state.lang === 'en' ? lessonsEn : lessons;
+  $('#lessonList').innerHTML = catalog.map((lesson, index) => { const done = completed.includes(lesson.id); return `<article class="lesson-card ${done ? 'done' : ''}"><div class="lesson-no">${String(index + 1).padStart(2, '0')}</div><div><h3>${lesson.title}</h3><p>${lesson.description}</p><small class="asset-label">${lesson.duration}</small></div><button data-lesson="${lesson.id}">${done ? (state.lang === 'en' ? 'Completed ✓' : 'Пройдено ✓') : (state.lang === 'en' ? 'Open lesson' : 'Открыть урок')}</button><div class="lesson-body hidden" id="lesson-${lesson.id}"><p>${lesson.body}</p></div></article>`; }).join('');
   $$('#lessonList [data-lesson]').forEach(button => button.addEventListener('click', () => toggleLesson(button.dataset.lesson)));
   renderProgress();
 }
@@ -111,18 +163,20 @@ function toggleLesson(id) {
   const body = $(`#lesson-${id}`); const card = body.closest('.lesson-card');
   if (!body.classList.contains('hidden')) { body.classList.add('hidden'); return; }
   body.classList.remove('hidden');
-  if (!completed.includes(id)) { completed.push(id); localStorage.setItem('cg-lessons', JSON.stringify(completed)); card.classList.add('done'); card.querySelector('button').textContent = 'Пройдено ✓'; renderProgress(); showToast('Урок отмечен как пройденный'); }
+  if (!completed.includes(id)) { completed.push(id); localStorage.setItem('cg-lessons', JSON.stringify(completed)); card.classList.add('done'); card.querySelector('button').textContent = state.lang === 'en' ? 'Completed ✓' : 'Пройдено ✓'; renderProgress(); showToast(state.lang === 'en' ? 'Lesson marked complete' : 'Урок отмечен как пройденный'); }
 }
 function renderProgress() {
   const completed = readArray('cg-lessons'); const count = completed.length;
-  $('#progressCount').textContent = `${count} / ${lessons.length}`; $('#progressBar').style.width = `${(count / lessons.length) * 100}%`;
-  const next = lessons.find(lesson => !completed.includes(lesson.id)) || lessons[lessons.length - 1];
-  $('#nextLesson').innerHTML = `<div class="next-lesson"><div class="lesson-index">${String(lessons.indexOf(next) + 1).padStart(2, '0')}</div><div><strong>${count === lessons.length ? 'Маршрут завершён — повтори любой урок' : next.title}</strong><small>${next.duration} · ${count === lessons.length ? 'поддерживай практику' : 'следующий шаг'}</small></div></div>`;
+  const catalog = state.lang === 'en' ? lessonsEn : lessons;
+  $('#progressCount').textContent = `${count} / ${catalog.length}`; $('#progressBar').style.width = `${(count / catalog.length) * 100}%`;
+  const next = catalog.find(lesson => !completed.includes(lesson.id)) || catalog[catalog.length - 1];
+  $('#nextLesson').innerHTML = `<div class="next-lesson"><div class="lesson-index">${String(catalog.indexOf(next) + 1).padStart(2, '0')}</div><div><strong>${count === catalog.length ? (state.lang === 'en' ? 'Route complete — revisit any lesson' : 'Маршрут завершён — повтори любой урок') : next.title}</strong><small>${next.duration} · ${count === catalog.length ? (state.lang === 'en' ? 'keep practising' : 'поддерживай практику') : (state.lang === 'en' ? 'next step' : 'следующий шаг')}</small></div></div>`;
 }
 function renderGlossary(query = '') {
   const normalized = query.trim().toLowerCase();
-  const terms = glossary.filter(([term, definition, category]) => `${term} ${definition} ${category}`.toLowerCase().includes(normalized));
-  $('#glossaryList').innerHTML = terms.map(([term, definition, category]) => `<article class="term-card"><h3>${term}</h3><p>${definition}</p><small>${category}</small></article>`).join('') || '<div class="empty-state"><strong>Термин не найден</strong><p>Попробуй более короткий запрос.</p></div>';
+  const catalog = state.lang === 'en' ? glossaryEn : glossary;
+  const terms = catalog.filter(([term, definition, category]) => `${term} ${definition} ${category}`.toLowerCase().includes(normalized));
+  $('#glossaryList').innerHTML = terms.map(([term, definition, category]) => `<article class="term-card"><h3>${term}</h3><p>${definition}</p><small>${category}</small></article>`).join('') || `<div class="empty-state"><strong>${state.lang === 'en' ? 'Term not found' : 'Термин не найден'}</strong><p>${state.lang === 'en' ? 'Try a shorter query.' : 'Попробуй более короткий запрос.'}</p></div>`;
 }
 function calculateRisk() {
   const deposit = Math.max(0, Number($('#depositInput').value) || 0); const risk = Math.max(0, Number($('#riskPercentInput').value) || 0); const stop = Math.max(0.01, Number($('#stopPercentInput').value) || 0.01);
@@ -198,10 +252,12 @@ function initEvents() {
   const dropzone = $('#dropzone'); ['dragenter', 'dragover'].forEach(type => dropzone.addEventListener(type, event => { event.preventDefault(); dropzone.classList.add('drag'); })); ['dragleave', 'drop'].forEach(type => dropzone.addEventListener(type, event => { event.preventDefault(); dropzone.classList.remove('drag'); })); dropzone.addEventListener('drop', event => handleFile(event.dataTransfer.files[0]));
   $('#termSearch').addEventListener('input', event => renderGlossary(event.target.value)); ['depositInput', 'riskPercentInput', 'stopPercentInput'].forEach(id => $(`#${id}`).addEventListener('input', calculateRisk)); $('.close-notice').addEventListener('click', event => event.currentTarget.closest('.notice-card').remove());
   $('#addPaperTrade').addEventListener('click', addPaperTrade); $('#saveJournal').addEventListener('click', saveJournal); $('#clearPaper').addEventListener('click', () => { localStorage.removeItem('cg-paper-trades'); renderPaper(); showToast('Paper-история очищена'); });
+  $('#langToggle').addEventListener('click', () => { state.lang = state.lang === 'ru' ? 'en' : 'ru'; localStorage.setItem('cg-lang', state.lang); applyLanguage(); loadNews(); showToast(state.lang === 'en' ? 'English interface enabled' : 'Русский интерфейс включён'); });
+  $('#themeToggle').addEventListener('click', () => { state.theme = state.theme === 'dark' ? 'light' : 'dark'; localStorage.setItem('cg-theme', state.theme); applyLanguage(); showToast(state.theme === 'light' ? 'Светлая тема включена' : 'Тёмная тема включена'); });
 }
 function debounce(fn, delay) { let timer; return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); }; }
 function boot() {
-  $('#heroDate').textContent = new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date());
-  initEvents(); renderLessons(); renderGlossary(); calculateRisk(); renderPaper(); loadMarket(); loadNews();
+  $('#heroDate').textContent = new Intl.DateTimeFormat(state.lang === 'en' ? 'en-US' : 'ru-RU', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date());
+  initEvents(); applyLanguage(); calculateRisk(); renderPaper(); loadMarket(); loadNews();
 }
 window.addEventListener('DOMContentLoaded', boot);
