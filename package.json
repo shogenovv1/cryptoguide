@@ -1,0 +1,10 @@
+{
+  "name": "cryptoguide",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Учебный криптокурс и аналитическая панель для Bybit",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js"
+  }
+}

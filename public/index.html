@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0a1015" />
+  <meta name="description" content="CryptoGuide — учебный куратор по Bybit, новостям и управлению риском." />
+  <title>CryptoGuide — учебный куратор</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Основная навигация">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"><span></span></div>
+        <div><strong>Crypto<span>Guide</span></strong><small>учебный куратор</small></div>
+      </div>
+      <div class="mode-pill"><i></i><span>Учебный режим</span></div>
+      <nav class="nav-list">
+        <button class="nav-item active" data-view="overview"><span class="nav-icon">⌂</span><span>Обзор</span><b>01</b></button>
+        <button class="nav-item" data-view="analyzer"><span class="nav-icon">⌁</span><span>Разбор графика</span><b>02</b></button>
+        <button class="nav-item" data-view="news"><span class="nav-icon">◉</span><span>Новости</span><b>03</b></button>
+        <button class="nav-item" data-view="learning"><span class="nav-icon">▤</span><span>Учёба</span><b>04</b></button>
+        <button class="nav-item" data-view="glossary"><span class="nav-icon">Aa</span><span>Термины</span><b>05</b></button>
+        <button class="nav-item" data-view="risk"><span class="nav-icon">△</span><span>Риск</span><b>06</b></button>
+      </nav>
+      <div class="sidebar-note">
+        <span class="eyebrow">ПРИНЦИП №01</span>
+        <p>Сначала контекст. Потом сценарий. Сделка — только после расчёта риска.</p>
+      </div>
+      <div class="sidebar-footer"><span class="status-dot"></span> Данные обновляются при запросе</div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div class="mobile-brand"><div class="brand-mark small" aria-hidden="true"><span></span></div><strong>Crypto<span>Guide</span></strong></div>
+        <div class="breadcrumb"><span>CRYPTOGUIDE</span><b>/</b><strong id="crumbLabel">ОБЗОР</strong></div>
+        <div class="top-actions"><span class="live-label"><i></i> LIVE DATA</span><button class="icon-button" id="refreshAll" title="Обновить данные">↻</button></div>
+      </header>
+
+      <section class="view active" id="view-overview">
+        <div class="hero-block">
+          <div>
+            <div class="eyebrow">ПАНЕЛЬ НАБЛЮДЕНИЯ <span class="teal-line"></span></div>
+            <h1>Сначала поймём<br /><em>контекст.</em></h1>
+            <p class="hero-copy">Учись видеть рынок целиком: график, новости и риск в одном спокойном пространстве.</p>
+          </div>
+          <div class="hero-action"><span class="mini-label">СЕГОДНЯ</span><strong id="heroDate">—</strong><button class="text-button" data-go="analyzer">Начать разбор <span>↗</span></button></div>
+        </div>
+
+        <div class="notice-card"><div class="notice-mark">i</div><div><strong>Это учебный помощник, не торговый робот</strong><p>Скриншот даёт только часть картины. CryptoGuide показывает сценарии, вопросы для проверки и риск — но не гарантирует результат и не размещает ордера.</p></div><button class="close-notice" aria-label="Закрыть уведомление">×</button></div>
+
+        <div class="section-heading"><div><span class="eyebrow">РЫНОК СЕЙЧАС</span><h2>Ключевые активы</h2></div><button class="ghost-button" data-go="news">Смотреть новости <span>→</span></button></div>
+        <div class="market-grid" id="marketGrid">
+          <article class="market-card skeleton"><span></span><span></span><span></span></article><article class="market-card skeleton"><span></span><span></span><span></span></article><article class="market-card skeleton"><span></span><span></span><span></span></article>
+        </div>
+
+        <div class="split-layout">
+          <section class="panel learning-progress"><div class="panel-head"><div><span class="eyebrow">ТВОЙ МАРШРУТ</span><h2>Обучение по шагам</h2></div><span class="progress-count" id="progressCount">0 / 5</span></div><div class="progress-track"><span id="progressBar"></span></div><div id="nextLesson"></div><button class="primary-button full" data-go="learning">Продолжить обучение <span>→</span></button></section>
+          <section class="panel latest-news"><div class="panel-head"><div><span class="eyebrow">ИЗ ЛЕНТЫ</span><h2>Последние сигналы</h2></div><span class="live-label"><i></i> LIVE</span></div><div id="latestNewsList" class="compact-news-list"><div class="loading-row">Загружаю новости<span class="loading-dots">...</span></div></div><button class="ghost-button full" data-go="news">Все новости <span>→</span></button></section>
+        </div>
+      </section>
+
+      <section class="view" id="view-analyzer">
+        <div class="page-intro"><div><span class="eyebrow">РАЗБОР ГРАФИКА / 02</span><h1>Посмотрим<br /><em>вместе.</em></h1></div><div class="page-intro-note">Загрузи скриншот с Bybit.<br />Я помогу разложить его на части.</div></div>
+        <div class="analyzer-layout">
+          <section class="panel upload-panel"><div class="panel-head"><div><span class="eyebrow">ШАГ 01</span><h2>Добавь скриншот</h2></div><span class="step-tag">изображение</span></div><label class="dropzone" id="dropzone"><input type="file" id="chartFile" accept="image/png,image/jpeg,image/webp" /><span class="upload-icon">＋</span><strong>Перетащи график сюда</strong><small>или нажми, чтобы выбрать PNG, JPG, WEBP</small></label><div class="image-preview-wrap hidden" id="previewWrap"><img id="chartPreview" alt="Предпросмотр загруженного графика" /><div><strong id="fileName">График загружен</strong><small id="fileMeta">—</small><button class="text-button" id="removeImage">Удалить и выбрать другой</button></div></div><div class="context-form"><label>Пара<input id="pairInput" value="BTC/USDT" placeholder="BTC/USDT" /></label><label>Таймфрейм<select id="timeframeInput"><option>15 минут</option><option selected>1 час</option><option>4 часа</option><option>1 день</option></select></label><label>Текущая цена<input id="priceInput" type="number" inputmode="decimal" value="100000" /></label><label>Что изучаем<select id="directionInput"><option value="neutral" selected>Понять ситуацию</option><option value="long">Ищу сценарий лонга</option><option value="short">Ищу сценарий шорта</option></select></label></div><button class="primary-button full" id="analyzeButton">Разобрать учебный сценарий <span>→</span></button></section>
+          <section class="panel analysis-panel" id="analysisPanel"><div class="panel-head"><div><span class="eyebrow">ШАГ 02</span><h2>Карточка разбора</h2></div><span class="status-badge neutral" id="analysisStatus">ОЖИДАЕТ</span></div><div id="analysisEmpty" class="empty-state"><div class="empty-orbit">⌁</div><strong>Здесь появится разбор</strong><p>Загрузи изображение и задай контекст. Результат будет сформулирован как сценарий с условием и риском, а не как приказ.</p></div><div id="analysisResult" class="hidden"></div></section>
+        </div>
+        <div class="disclaimer-strip"><span>!</span><p><strong>Ограничение метода.</strong> Один скриншот не видит новости, ликвидность и будущую цену. Используй результат как учебную гипотезу и всегда проверяй её сам.</p></div>
+      </section>
+
+      <section class="view" id="view-news">
+        <div class="page-intro news-intro"><div><span class="eyebrow">LIVE FEED / 03</span><h1>Новости без<br /><em>шума.</em></h1></div><div class="page-intro-note">Актуальные публикации<br />из открытых RSS-источников.</div></div>
+        <section class="panel news-panel"><div class="news-toolbar"><div class="search-box"><span>⌕</span><input id="newsSearch" placeholder="Искать по заголовку или активу..." /></div><select id="newsAsset"><option value="all">Все темы</option><option value="BTC">BTC</option><option value="ETH">ETH</option><option value="SOL">SOL</option><option value="DeFi">DeFi</option><option value="Market">Market</option></select><button class="ghost-button" id="refreshNews">↻ Обновить</button></div><div class="news-meta"><span id="newsStatus">Загрузка ленты...</span><span>Источники: CoinDesk, Cointelegraph</span></div><div class="news-list" id="newsList"></div></section>
+      </section>
+
+      <section class="view" id="view-learning">
+        <div class="page-intro"><div><span class="eyebrow">ПРОГРАММА / 04</span><h1>Пять шагов<br /><em>к ясности.</em></h1></div><div class="page-intro-note">Короткие уроки вместо<br />прыжка сразу во фьючерсы.</div></div>
+        <div class="lesson-list" id="lessonList"></div>
+      </section>
+
+      <section class="view" id="view-glossary">
+        <div class="page-intro"><div><span class="eyebrow">СПРАВОЧНИК / 05</span><h1>Слова,<br /><em>которые важны.</em></h1></div><div class="page-intro-note">Ищи термин — получай<br />смысл и практический риск.</div></div>
+        <section class="panel glossary-panel"><div class="search-box wide"><span>⌕</span><input id="termSearch" placeholder="Например: маржа, funding, лимитный ордер..." /></div><div id="glossaryList" class="glossary-list"></div></section>
+      </section>
+
+      <section class="view" id="view-risk">
+        <div class="page-intro"><div><span class="eyebrow">КАЛЬКУЛЯТОР / 06</span><h1>Риск — это<br /><em>доходность.</em></h1></div><div class="page-intro-note">Сначала размер риска.<br />Потом размер позиции.</div></div>
+        <div class="risk-layout"><section class="panel risk-form"><div class="panel-head"><div><span class="eyebrow">ПЕРЕД СДЕЛКОЙ</span><h2>Посчитай размер</h2></div><span class="step-tag">без исполнения</span></div><label>Депозит, USDT<input id="depositInput" type="number" value="1000" min="0" /></label><label>Риск на сделку, %<input id="riskPercentInput" type="number" value="1" min="0.1" max="10" step="0.1" /></label><label>Дистанция до стопа, %<input id="stopPercentInput" type="number" value="2" min="0.1" max="100" step="0.1" /></label><div class="risk-tip"><strong>Учебный ориентир</strong><p>Новичку важно заранее определить сумму, которую он готов потерять по сценарию. Плечо не уменьшает риск, а ускоряет его.</p></div></section><section class="panel risk-result"><span class="eyebrow">РЕЗУЛЬТАТ</span><div class="risk-number" id="riskAmount">10.00 <small>USDT</small></div><p>Максимальный плановый убыток по сценарию</p><div class="risk-breakdown"><div><span>Примерный размер позиции</span><strong id="positionAmount">500.00 USDT</strong></div><div><span>Соотношение стопа к депозиту</span><strong id="stopRatio">0.02%</strong></div></div><div class="disclaimer-strip small"><span>!</span><p>Расчёт не учитывает комиссию, проскальзывание, funding и ликвидацию. Для фьючерсов держи запас и не используй весь баланс как маржу.</p></div></section></div>
+      </section>
+
+      <footer class="app-footer"><span>CRYPTOGUIDE / учебный инструмент</span><span>Не финансовая рекомендация · 2026</span></footer>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="/app.js" defer></script>
+</body>
+</html>
