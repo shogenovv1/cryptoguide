@@ -103,7 +103,8 @@ const mime = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=u
 async function serveStatic(res, pathname) {
   const relative = pathname === '/' ? 'index.html' : pathname.replace(/^\//, '');
   const target = path.resolve(PUBLIC, relative);
-  if (!target.startsWith(PUBLIC)) return send(res, 403, { error: 'Forbidden' });
+  const relativeTarget = path.relative(PUBLIC, target);
+  if (relativeTarget.startsWith(`..${path.sep}`) || path.isAbsolute(relativeTarget)) return send(res, 403, { error: 'Forbidden' });
   try {
     const info = await stat(target);
     if (!info.isFile()) throw new Error('not file');
@@ -132,7 +133,7 @@ const server = http.createServer(async (req, res) => {
     return serveStatic(res, url.pathname);
   } catch (error) {
     console.error(error);
-    send(res, 500, { error: 'Не удалось получить данные', detail: error.message });
+    send(res, 500, { error: 'Не удалось получить данные' });
   }
 });
 

@@ -1,6 +1,14 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { currentView: 'overview', news: [], selectedImage: null, lessons: [], history: JSON.parse(localStorage.getItem('cg-history') || '[]') };
+function readArray(key) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || '[]');
+    return Array.isArray(value) ? value : [];
+  } catch {
+    return [];
+  }
+}
+const state = { currentView: 'overview', news: [], selectedImage: null, lessons: [], history: readArray('cg-history') };
 
 const lessons = [
   { id: 'p2p', title: 'P2P: обмен без спешки', duration: '6 мин · база', description: 'Что происходит между покупателем и продавцом, как работает escrow и какие красные флаги нельзя игнорировать.', body: 'P2P — это сделка между пользователями через площадку. Проверяй имя получателя, не уходи в сторонние мессенджеры, не подтверждай оплату по скриншоту и не отпускай актив, пока деньги не видны в твоём банке.' },
@@ -63,9 +71,17 @@ async function loadMarket() {
   catch { renderMarket(null); }
 }
 function renderCompactNews(items = []) {
-  $('#latestNewsList').innerHTML = items.slice(0, 3).map(item => `<div class="compact-news-item"><span class="news-bullet"></span><div><a href="${item.url}" target="_blank" rel="noreferrer">${escapeHtml(item.title)}</a><small>${escapeHtml(item.source)} · ${formatDate(item.time)}</small></div></div>`).join('') || '<div class="loading-row">Пока нет новостей для показа.</div>';
+  $('#latestNewsList').innerHTML = items.slice(0, 3).map(item => `<div class="compact-news-item"><span class="news-bullet"></span><div><a href="${safeExternalUrl(item.url)}" target="_blank" rel="noreferrer">${escapeHtml(item.title)}</a><small>${escapeHtml(item.source)} · ${formatDate(item.time)}</small></div></div>`).join('') || '<div class="loading-row">Пока нет новостей для показа.</div>';
 }
 function escapeHtml(text = '') { return text.replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char])); }
+function safeExternalUrl(value = '') {
+  try {
+    const url = new URL(value, window.location.origin);
+    return ['http:', 'https:'].includes(url.protocol) ? escapeHtml(url.href) : '#';
+  } catch {
+    return '#';
+  }
+}
 async function loadNews() {
   $('#newsStatus').textContent = 'Обновляю ленту...';
   const q = encodeURIComponent($('#newsSearch')?.value.trim() || '');
@@ -81,24 +97,24 @@ async function loadNews() {
   }
 }
 function renderNews(items) {
-  $('#newsList').innerHTML = items.map(item => `<article class="news-row"><div class="news-source">${escapeHtml(item.source)}</div><div><h3><a href="${item.url}" target="_blank" rel="noreferrer">${escapeHtml(item.title)}</a></h3><p>${formatDate(item.time)} · открывается на сайте источника</p></div><div class="news-tag">${escapeHtml(item.asset)}</div></article>`).join('') || '<div class="empty-state"><strong>Ничего не найдено</strong><p>Измени запрос или выбери другую тему.</p></div>';
+  $('#newsList').innerHTML = items.map(item => `<article class="news-row"><div class="news-source">${escapeHtml(item.source)}</div><div><h3><a href="${safeExternalUrl(item.url)}" target="_blank" rel="noreferrer">${escapeHtml(item.title)}</a></h3><p>${formatDate(item.time)} · открывается на сайте источника</p></div><div class="news-tag">${escapeHtml(item.asset)}</div></article>`).join('') || '<div class="empty-state"><strong>Ничего не найдено</strong><p>Измени запрос или выбери другую тему.</p></div>';
 }
 function renderLessons() {
-  const completed = JSON.parse(localStorage.getItem('cg-lessons') || '[]'); state.lessons = completed;
+  const completed = readArray('cg-lessons'); state.lessons = completed;
   $('#lessonList').innerHTML = lessons.map((lesson, index) => { const done = completed.includes(lesson.id); return `<article class="lesson-card ${done ? 'done' : ''}"><div class="lesson-no">${String(index + 1).padStart(2, '0')}</div><div><h3>${lesson.title}</h3><p>${lesson.description}</p><small class="asset-label">${lesson.duration}</small></div><button data-lesson="${lesson.id}">${done ? 'Пройдено ✓' : 'Открыть урок'}</button><div class="lesson-body hidden" id="lesson-${lesson.id}"><p>${lesson.body}</p></div></article>`; }).join('');
   $$('#lessonList [data-lesson]').forEach(button => button.addEventListener('click', () => toggleLesson(button.dataset.lesson)));
   renderProgress();
 }
 function toggleLesson(id) {
   const lesson = lessons.find(item => item.id === id); if (!lesson) return;
-  const completed = JSON.parse(localStorage.getItem('cg-lessons') || '[]');
+  const completed = readArray('cg-lessons');
   const body = $(`#lesson-${id}`); const card = body.closest('.lesson-card');
   if (!body.classList.contains('hidden')) { body.classList.add('hidden'); return; }
   body.classList.remove('hidden');
   if (!completed.includes(id)) { completed.push(id); localStorage.setItem('cg-lessons', JSON.stringify(completed)); card.classList.add('done'); card.querySelector('button').textContent = 'Пройдено ✓'; renderProgress(); showToast('Урок отмечен как пройденный'); }
 }
 function renderProgress() {
-  const completed = JSON.parse(localStorage.getItem('cg-lessons') || '[]'); const count = completed.length;
+  const completed = readArray('cg-lessons'); const count = completed.length;
   $('#progressCount').textContent = `${count} / ${lessons.length}`; $('#progressBar').style.width = `${(count / lessons.length) * 100}%`;
   const next = lessons.find(lesson => !completed.includes(lesson.id)) || lessons[lessons.length - 1];
   $('#nextLesson').innerHTML = `<div class="next-lesson"><div class="lesson-index">${String(lessons.indexOf(next) + 1).padStart(2, '0')}</div><div><strong>${count === lessons.length ? 'Маршрут завершён — повтори любой урок' : next.title}</strong><small>${next.duration} · ${count === lessons.length ? 'поддерживай практику' : 'следующий шаг'}</small></div></div>`;
@@ -114,7 +130,9 @@ function calculateRisk() {
   $('#riskAmount').innerHTML = `${loss.toFixed(2)} <small>USDT</small>`; $('#positionAmount').textContent = `${position.toFixed(2)} USDT`; $('#stopRatio').textContent = `${stopRatio.toFixed(2)}%`;
 }
 function handleFile(file) {
-  if (!file || !file.type.startsWith('image/')) { showToast('Выбери изображение PNG, JPG или WEBP'); return; }
+  const allowedTypes = new Set(['image/png', 'image/jpeg', 'image/webp']);
+  if (!file || !allowedTypes.has(file.type)) { showToast('Выбери изображение PNG, JPG или WEBP'); return; }
+  if (file.size > 8 * 1024 * 1024) { showToast('Файл слишком большой: максимум 8 MB'); return; }
   state.selectedImage = file; const reader = new FileReader();
   reader.onload = event => { $('#chartPreview').src = event.target.result; $('#fileName').textContent = file.name; $('#fileMeta').textContent = `${(file.size / 1024).toFixed(0)} KB · ${file.type.split('/')[1].toUpperCase()}`; $('#dropzone').classList.add('hidden'); $('#previewWrap').classList.remove('hidden'); };
   reader.readAsDataURL(file);
@@ -122,13 +140,13 @@ function handleFile(file) {
 function removeImage() { state.selectedImage = null; $('#chartFile').value = ''; $('#dropzone').classList.remove('hidden'); $('#previewWrap').classList.add('hidden'); }
 function analyzeChart() {
   if (!state.selectedImage) { showToast('Сначала добавь скриншот графика'); return; }
-  const pair = ($('#pairInput').value.trim() || 'BTC/USDT').toUpperCase(); const timeframe = $('#timeframeInput').value; const price = Math.max(0, Number($('#priceInput').value) || 0); const direction = $('#directionInput').value;
+  const pair = ($('#pairInput').value.trim() || 'BTC/USDT').toUpperCase(); const safePair = escapeHtml(pair); const timeframe = $('#timeframeInput').value; const price = Math.max(0, Number($('#priceInput').value) || 0); const direction = $('#directionInput').value;
   const buffer = price * .012; const stop = direction === 'short' ? price + buffer : price - buffer; const target = direction === 'short' ? price - buffer * 1.8 : price + buffer * 1.8;
   const scenario = direction === 'long' ? 'Лонг только после подтверждения' : direction === 'short' ? 'Шорт только после подтверждения' : 'Наблюдение до появления сигнала';
   const condition = direction === 'long' ? `цена удерживается выше ${formatPrice(price)} и формирует подтверждение на ${timeframe}` : direction === 'short' ? `цена не возвращается выше ${formatPrice(price)} и показывает слабость на ${timeframe}` : `появляется понятная реакция на уровень ${formatPrice(price)} с объёмом или структурой движения`;
   const invalidation = direction === 'short' ? `закрепление выше ${formatPrice(stop)}` : `закрепление ниже ${formatPrice(stop)}`;
   const action = direction === 'neutral' ? 'Сейчас полезнее наблюдать и собрать подтверждения.' : 'Не входить по одному скриншоту; сначала проверить условие сценария.';
-  const result = `<div class="analysis-result"><div class="signal-card"><span class="signal-label">УЧЕБНЫЙ СЦЕНАРИЙ · ${pair}</span><h3>${scenario}</h3><p>${action} Сценарий построен по введённой цене и контексту, а не является предсказанием рынка.</p></div><div class="analysis-grid"><div class="analysis-cell"><span>Условие</span><strong>${condition}</strong></div><div class="analysis-cell"><span>Точка отмены</span><strong>${invalidation}</strong></div><div class="analysis-cell"><span>Учебная цель</span><strong>${formatPrice(target)}</strong></div><div class="analysis-cell"><span>Уровень риска</span><strong>умеренный / проверь сам</strong></div></div><ul class="analysis-list"><li><strong>Что проверить:</strong> старший таймфрейм, ближайшие уровни, объём и новости по ${pair.split('/')[0]}.</li><li><strong>Почему не спешить:</strong> скриншот не показывает ликвидность, funding, комиссию и внезапные события.</li><li><strong>Дисциплина:</strong> если условие не выполнено, сценарий пропускается — это нормальный результат.</li></ul></div>`;
+  const result = `<div class="analysis-result"><div class="signal-card"><span class="signal-label">УЧЕБНЫЙ СЦЕНАРИЙ · ${safePair}</span><h3>${scenario}</h3><p>${action} Сценарий построен по введённой цене и контексту, а не является предсказанием рынка.</p></div><div class="analysis-grid"><div class="analysis-cell"><span>Условие</span><strong>${condition}</strong></div><div class="analysis-cell"><span>Точка отмены</span><strong>${invalidation}</strong></div><div class="analysis-cell"><span>Учебная цель</span><strong>${formatPrice(target)}</strong></div><div class="analysis-cell"><span>Уровень риска</span><strong>умеренный / проверь сам</strong></div></div><ul class="analysis-list"><li><strong>Что проверить:</strong> старший таймфрейм, ближайшие уровни, объём и новости по ${escapeHtml(pair.split('/')[0])}.</li><li><strong>Почему не спешить:</strong> скриншот не показывает ликвидность, funding, комиссию и внезапные события.</li><li><strong>Дисциплина:</strong> если условие не выполнено, сценарий пропускается — это нормальный результат.</li></ul></div>`;
   $('#analysisEmpty').classList.add('hidden'); $('#analysisResult').innerHTML = result; $('#analysisResult').classList.remove('hidden'); $('#analysisStatus').textContent = 'ГОТОВО'; $('#analysisStatus').className = 'status-badge ready';
   state.history.unshift({ pair, timeframe, direction, at: new Date().toISOString() }); state.history = state.history.slice(0, 6); localStorage.setItem('cg-history', JSON.stringify(state.history)); showToast('Учебный сценарий готов');
 }
